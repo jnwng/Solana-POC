@@ -4,9 +4,10 @@ const splToken = require('@solana/spl-token');
 
 require('dotenv').config()
 
+const mnemonic = "trouble sport ignore faint hidden mushroom van future naive spike issue sheriff"
+
 function getUserAccount() {
     const NO_PASSWORD = "";
-    const mnemonic = bip39.generateMnemonic();
     const seed = bip39.mnemonicToSeedSync(mnemonic, NO_PASSWORD); 
     const keypair = web3.Keypair.fromSeed(seed.slice(0, 32));
     console.log(`User Account: https://explorer.solana.com/address/${keypair.publicKey.toBase58()}?cluster=devnet}`);
@@ -45,9 +46,9 @@ async function mint(connection, keypair, mint, tokenAccount) {
     const connection = new web3.Connection(web3.clusterApiUrl("devnet"));
     const keypair = getUserAccount();
     await airdropSolToUserAccount(keypair, connection);
-    //const mintAccountPubkey = await createMintAccount(connection, keypair);
-    //const tokenAccountAddress = await createTokenAccount(connection, mintAccountPubkey, keypair);
-    //const transactionHash = await mint(connection, keypair, mintAccountPubkey, tokenAccountAddress);
+    const mintAccountPubkey = await createMintAccount(connection, keypair);
+    const tokenAccountAddress = await createTokenAccount(connection, mintAccountPubkey, keypair);
+    const transactionHash = await mint(connection, keypair, mintAccountPubkey, tokenAccountAddress);
     
 
     // const number_of_tokens = 1 * Math.pow(10, MINT_CONFIG.numDecimals)
