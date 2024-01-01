@@ -5,8 +5,10 @@ const splToken = require('@solana/spl-token');
 require('dotenv').config()
 
 function getUserAccount() {
-    const NO_PASSWORD = ""
-    const seed = bip39.mnemonicToSeedSync(process.env.SOLANA_SEED_PHRASE, NO_PASSWORD); 
+    const NO_PASSWORD = "";
+    const mnemonic = bip39.generateMnemonic();
+    console.log(mnemonic);
+    const seed = bip39.mnemonicToSeedSync(mnemonic, NO_PASSWORD); 
     const keypair = web3.Keypair.fromSeed(seed.slice(0, 32));
     console.log(`User Account: https://explorer.solana.com/address/${keypair.publicKey.toBase58()}?cluster=devnet}`);
     return keypair;
@@ -16,7 +18,7 @@ async function airdropSolToUserAccount() {
     try {
         await connection.requestAirdrop(keypair.publicKey, 1000000000);
     } catch (error) {
-        console.log("Could not airdrop")
+        console.log("Could not airdrop");
     }
 }
 
@@ -34,9 +36,9 @@ async function createTokenAccount(connection, mint, keypair) {
 }
 
 async function mint(connection, keypair, mint, tokenAccount) {
-    console.log(`${connection} ${keypair} ${mint} ${tokenAccount}`)
+    console.log(`${connection} ${keypair} ${mint} ${tokenAccount}`);
     const transactionSignature = await splToken.mintTo(connection, keypair, mint, tokenAccount, keypair, 1);
-    console.log(`Transaction hash: ${transactionSignature}`)
+    console.log(`Transaction hash: ${transactionSignature}`);
     return transactionSignature;
 }
 
