@@ -7,18 +7,17 @@ require('dotenv').config()
 function getUserAccount() {
     const NO_PASSWORD = "";
     const mnemonic = bip39.generateMnemonic();
-    console.log(mnemonic);
     const seed = bip39.mnemonicToSeedSync(mnemonic, NO_PASSWORD); 
     const keypair = web3.Keypair.fromSeed(seed.slice(0, 32));
     console.log(`User Account: https://explorer.solana.com/address/${keypair.publicKey.toBase58()}?cluster=devnet}`);
     return keypair;
 }
 
-async function airdropSolToUserAccount() {
+async function airdropSolToUserAccount(keypair, connection) {
     try {
         await connection.requestAirdrop(keypair.publicKey, 1000000000);
     } catch (error) {
-        console.log("Could not airdrop");
+        console.log(`Could not airdrop: ${error}`);
     }
 }
 
@@ -45,10 +44,10 @@ async function mint(connection, keypair, mint, tokenAccount) {
 (async () => {
     const connection = new web3.Connection(web3.clusterApiUrl("devnet"));
     const keypair = getUserAccount();
-    await airdropSolToUserAccount();
-    const mintAccountPubkey = await createMintAccount(connection, keypair);
-    const tokenAccountAddress = await createTokenAccount(connection, mintAccountPubkey, keypair);
-    const transactionHash = await mint(connection, keypair, mintAccountPubkey, tokenAccountAddress);
+    await airdropSolToUserAccount(keypair, connection);
+    //const mintAccountPubkey = await createMintAccount(connection, keypair);
+    //const tokenAccountAddress = await createTokenAccount(connection, mintAccountPubkey, keypair);
+    //const transactionHash = await mint(connection, keypair, mintAccountPubkey, tokenAccountAddress);
     
 
     // const number_of_tokens = 1 * Math.pow(10, MINT_CONFIG.numDecimals)
