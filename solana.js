@@ -175,6 +175,7 @@ async function createNft() {
   );
 }
 
+// mints directly to the wallet
 async function createNftWithMetadata() {
   try {
     const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
@@ -192,7 +193,7 @@ async function createNftWithMetadata() {
     });
 
     const { nft } = await metaplex.nfts().create({
-      name: "Fibi's first NFT",
+      name: "Fibi's second NFT",
       uri,
     });
 
