@@ -7,6 +7,7 @@ import {
 } from "@solana/spl-token";
 
 import dotenv from "dotenv";
+import { updateTokenMetadata } from "./update_metadata.js";
 dotenv.config();
 
 const DEFAULT_MNEMONIC =
@@ -18,9 +19,13 @@ export function getUserAccount(mnemonic) {
   const NO_PASSWORD = "";
   const seed = mnemonicToSeedSync(mnemonic || DEFAULT_MNEMONIC, NO_PASSWORD);
   const keypair = Keypair.fromSeed(seed.slice(0, 32));
+  console.log("-------------------------------------------------");
+
   console.log(
     `User Account: https://explorer.solana.com/address/${keypair.publicKey.toBase58()}?cluster=devnet}`
   );
+  console.log("-------------------------------------------------");
+
   return keypair;
 }
 
@@ -42,9 +47,14 @@ async function createMintAccount(keypair) {
     keypair.publicKey,
     decimals
   );
+  console.log("-------------------------------------------------");
+
+  console.log(`   Successfully created mint account!🎉`);
   console.log(
     `Token Mint Account: https://solscan.io/address/${publicKey.toBase58()}?cluster=devnet`
   );
+  console.log("-------------------------------------------------");
+
   return publicKey;
 }
 
@@ -56,9 +66,14 @@ async function createTokenAccount(mint, keypair) {
       mint,
       keypair.publicKey
     );
+    console.log("-------------------------------------------------");
+
+    console.log(`   Successfully created token account!🎉`);
     console.log(
       `Token Account: https://solscan.io/address/${tokenAccPubKey}?cluster=devnet`
     );
+    console.log("-------------------------------------------------");
+
     return tokenAccPubKey;
   } catch (error) {
     console.log(`createTokenAccount error: ${error.message}`);
@@ -66,6 +81,7 @@ async function createTokenAccount(mint, keypair) {
   }
 }
 
+// this part we will do on our side
 async function mint(mintAccountPubkey, tokenAccountPubkey) {
   try {
     const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
@@ -78,9 +94,14 @@ async function mint(mintAccountPubkey, tokenAccountPubkey) {
       mintAuthorityKeypair,
       10
     );
+    console.log("-------------------------------------------------");
+
+    console.log(`   Successfully minted token to the token account!🎉`);
     console.log(
       `Transaction hash: https://solscan.io/tx/${transactionSignature}?cluster=devnet`
     );
+    console.log("-------------------------------------------------");
+
     return transactionSignature;
   } catch (error) {
     console.log(`mint error: ${error.message}`);
@@ -102,13 +123,14 @@ function generateSolanaKeypair() {
 
 async function main() {
   const keypair = getUserAccount();
+  const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
 
   console.log(
     "Wallet address that will generate token:" +
       `https://solscan.io/account/${keypair.publicKey.toBase58()}`
   );
 
-  await airdropSolToUserAccount(keypair);
+  // await airdropSolToUserAccount(keypair);
 
   // creating mint account with tweed mint authority
   const mintAccountPubkey = await createMintAccount(keypair);
@@ -118,11 +140,10 @@ async function main() {
     keypair
   );
 
-  // mint only after uploaded metadata
-  //   const transactionHash = await mint(
-  //   mintAccountPubkey,
-  //   tokenAccountPubkey
-  // );
+  await updateTokenMetadata(mintAccountPubkey, keypair, mintAuthorityKeypair);
+
+  // mint only after metadata has been uploaded
+  await mint(mintAccountPubkey, tokenAccountPubkey);
 }
 
 main();

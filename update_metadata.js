@@ -1,76 +1,38 @@
 import { createMetadataAccountV3 } from "@metaplex-foundation/mpl-token-metadata";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
-import { createMint } from "@solana/spl-token";
 import {
   Connection,
-  Keypair,
   PublicKey,
   Transaction,
   clusterApiUrl,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { mnemonicToSeedSync } from "bip39";
 import {
   fromWeb3JsPublicKey,
   toWeb3JsPublicKey,
 } from "@metaplex-foundation/umi-web3js-adapters";
 
-import dotenv from "dotenv";
-dotenv.config();
-
-const DEFAULT_MNEMONIC =
-  "trouble sport ignore faint hidden mushroom van future naive spike issue sheriff";
-const TWEED_WALLET_MNEMONIC = process.env.TWEED_WALLET_MNEMONIC; // devnet address 2SaEtKn292eAgHnfypJMGkUPXfHhZvMt4VjXKLXJBxbf
-
-//Connection and Umi instance
-const endpoint = clusterApiUrl("devnet");
-const umi = createUmi(endpoint);
+// constants
+const umi = createUmi(clusterApiUrl("devnet"));
 const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-
-//Constants
 const mplProgramId = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 );
-const mint = new PublicKey("4EttqH8nm4SRyNGsvUnzGhh8it6VCU87zvfkWpx2rZkn");
-const [metadata] = PublicKey.findProgramAddressSync(
-  [Buffer.from("metadata"), mplProgramId.toBytes(), mint.toBytes()],
-  mplProgramId
-);
 
-export function getUserAccount(mnemonic) {
-  const NO_PASSWORD = "";
-  const seed = mnemonicToSeedSync(mnemonic || DEFAULT_MNEMONIC, NO_PASSWORD);
-  const keypair = Keypair.fromSeed(seed.slice(0, 32));
-  console.log(
-    `User Account: https://explorer.solana.com/address/${keypair.publicKey.toBase58()}?cluster=devnet}`
-  );
-  return keypair;
-}
-
-async function createMintAccount(keypair) {
-  const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
-  const decimals = 0;
-  const publicKey = await createMint(
-    connection,
-    keypair,
-    mintAuthorityKeypair.publicKey,
-    keypair.publicKey,
-    decimals
-  );
-  console.log(
-    `Token Mint Account: https://solscan.io/address/${publicKey.toBase58()}?cluster=devnet`
-  );
-  return publicKey;
-}
-
-const main = async () => {
+export async function updateTokenMetadata(
+  mint,
+  ownerKeypair,
+  mintAuthorityKeypair
+) {
   try {
-    const ownerKeypair = getUserAccount();
-    const mintKeypair = getUserAccount(process.env.TWEED_WALLET_MNEMONIC);
+    const [metadata] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), mplProgramId.toBytes(), mint.toBytes()],
+      mplProgramId
+    );
 
     const instructionArgs = {
       mint,
-      mintAuthority: mintKeypair,
+      mintAuthority: mintAuthorityKeypair,
       //payer: keypair,
       //updateAuthority: keypair.publicKey,
       data: {
@@ -88,7 +50,7 @@ const main = async () => {
 
     //The tx builder expects the type of mint authority and signer to be `Signer`, so built a dummy Signer instance
     const signer = {
-      publicKey: fromWeb3JsPublicKey(mintKeypair.publicKey),
+      publicKey: fromWeb3JsPublicKey(mintAuthorityKeypair.publicKey),
       signTransaction: null,
       signMessage: null,
       signAllTransactions: null,
@@ -99,7 +61,7 @@ const main = async () => {
       metadata: fromWeb3JsPublicKey(metadata),
       mint: fromWeb3JsPublicKey(mint),
       payer: signer,
-      mintAuthority: mintKeypair,
+      mintAuthority: mintAuthorityKeypair,
       updateAuthority: fromWeb3JsPublicKey(ownerKeypair.publicKey),
     };
 
@@ -108,28 +70,23 @@ const main = async () => {
 
     const metadataBuilder = createMetadataAccountV3(umi, fullArgs);
 
-    (async () => {
-      const ix = metadataBuilder.getInstructions()[0];
-      ix.keys = ix.keys.map((key) => {
-        const newKey = { ...key };
-        newKey.pubkey = toWeb3JsPublicKey(key.pubkey);
-        return newKey;
-      });
+    const ix = metadataBuilder.getInstructions()[0];
+    ix.keys = ix.keys.map((key) => {
+      const newKey = { ...key };
+      newKey.pubkey = toWeb3JsPublicKey(key.pubkey);
+      return newKey;
+    });
 
-      const tx = new Transaction().add(ix);
-      const sig = await sendAndConfirmTransaction(connection, tx, [
-        ownerKeypair,
-        mintKeypair,
-      ]);
+    const tx = new Transaction().add(ix);
+    const sig = await sendAndConfirmTransaction(connection, tx, [
+      ownerKeypair,
+      mintAuthorityKeypair,
+    ]);
 
-      console.log(`   Successfully updated ${mint} metadata!🎉`);
-      console.log(
-        `   Transaction: https://solscan.io/tx/${sig}?cluster=devnet`
-      );
-    })();
+    console.log(`   Successfully updated ${mint} metadata!🎉`);
+    console.log(`   Transaction: https://solscan.io/tx/${sig}?cluster=devnet`);
   } catch (error) {
-    console.log({ error });
+    console.log("updateTokenMetadata error:" + { error });
+    throw error;
   }
-};
-
-main();
+}
