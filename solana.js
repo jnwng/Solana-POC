@@ -10,14 +10,16 @@ import dotenv from "dotenv";
 import { updateTokenMetadata } from "./update_metadata.js";
 dotenv.config();
 
-const DEFAULT_MNEMONIC =
+const PLATFORMS_MNEMONIC =
   "trouble sport ignore faint hidden mushroom van future naive spike issue sheriff"; // devnet address 8TDZ7JWKUnhhtQsYa7e6mepj2txVN4VbuvSTn4MdcZWc
+const DESTINATION_WALLET_MNEMONIC =
+  "jelly leopard sad thunder property check champion pig dune meat tape crawl"; // devnet address DSrxq6niWEh2GXJUERiyz2MQQfpzYqieAnW7Vd3fDH5S - user that will receive an nft
 const TWEED_WALLET_MNEMONIC = process.env.TWEED_WALLET_MNEMONIC; // devnet address 2SaEtKn292eAgHnfypJMGkUPXfHhZvMt4VjXKLXJBxbf
 const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
 export function getUserAccount(mnemonic) {
   const NO_PASSWORD = "";
-  const seed = mnemonicToSeedSync(mnemonic || DEFAULT_MNEMONIC, NO_PASSWORD);
+  const seed = mnemonicToSeedSync(mnemonic || PLATFORMS_MNEMONIC, NO_PASSWORD);
   const keypair = Keypair.fromSeed(seed.slice(0, 32));
   console.log("-------------------------------------------------");
 
@@ -58,13 +60,13 @@ async function createMintAccount(keypair) {
   return publicKey;
 }
 
-async function createTokenAccount(mint, keypair) {
+async function createTokenAccount(mint, payer, owner) {
   try {
     const tokenAccPubKey = await createAssociatedTokenAccount(
       connection,
-      keypair,
+      payer,
       mint,
-      keypair.publicKey
+      owner
     );
     console.log("-------------------------------------------------");
 
@@ -82,16 +84,16 @@ async function createTokenAccount(mint, keypair) {
 }
 
 // this part we will do on our side
-async function mint(mintAccountPubkey, tokenAccountPubkey) {
+async function mint(mintAccountPubkey, destinationTokenAccountPubkey) {
   try {
     const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
 
     const transactionSignature = await mintTo(
       connection,
-      mintAuthorityKeypair,
+      mintAuthorityKeypair, // tweed is payer
       mintAccountPubkey,
-      tokenAccountPubkey,
-      mintAuthorityKeypair,
+      destinationTokenAccountPubkey,
+      mintAuthorityKeypair, // tweed is mint authority
       10
     );
     console.log("-------------------------------------------------");
@@ -109,12 +111,14 @@ async function mint(mintAccountPubkey, tokenAccountPubkey) {
   }
 }
 
-function generateSolanaKeypair() {
+async function generateSolanaKeypair() {
   const mnemonic = generateMnemonic();
   console.log("Mnemonic:", mnemonic);
 
   const seed = mnemonicToSeedSync(mnemonic, "");
   const keypair = Keypair.fromSeed(seed.slice(0, 32));
+
+  await airdropSolToUserAccount(keypair);
 
   console.log("Public Key:", keypair.publicKey.toBase58());
 
@@ -122,28 +126,38 @@ function generateSolanaKeypair() {
 }
 
 async function main() {
-  const keypair = getUserAccount();
+  // ------------------------ PLATFORM'S PART ------------------------
+  const platformsKeypair = getUserAccount();
   const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
+  const tokenDestinationOwnerKeypair = getUserAccount(
+    DESTINATION_WALLET_MNEMONIC
+  );
 
   console.log(
     "Wallet address that will generate token:" +
-      `https://solscan.io/account/${keypair.publicKey.toBase58()}`
+      `https://solscan.io/account/${platformsKeypair.publicKey.toBase58()}`
   );
 
-  // await airdropSolToUserAccount(keypair);
+  // await airdropSolToUserAccount(platformsKeypair);
 
   // creating mint account with tweed mint authority
-  const mintAccountPubkey = await createMintAccount(keypair);
+  const mintAccountPubkey = await createMintAccount(platformsKeypair);
 
-  const tokenAccountPubkey = await createTokenAccount(
+  await updateTokenMetadata(
     mintAccountPubkey,
-    keypair
+    platformsKeypair,
+    mintAuthorityKeypair
   );
 
-  await updateTokenMetadata(mintAccountPubkey, keypair, mintAuthorityKeypair);
+  // ------------------------ OUR PART ------------------------
+  const destinationTokenAccountPubkey = await createTokenAccount(
+    mintAccountPubkey,
+    mintAuthorityKeypair, // tweed wallet,
+    tokenDestinationOwnerKeypair.publicKey
+  );
 
   // mint only after metadata has been uploaded
-  await mint(mintAccountPubkey, tokenAccountPubkey);
+  await mint(mintAccountPubkey, destinationTokenAccountPubkey);
 }
 
 main();
