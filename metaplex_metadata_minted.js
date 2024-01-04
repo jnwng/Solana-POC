@@ -1,8 +1,4 @@
-import {
-  Metaplex,
-  keypairIdentity,
-  bundlrStorage,
-} from "@metaplex-foundation/js";
+import { Metaplex, keypairIdentity } from "@metaplex-foundation/js";
 import { getUserAccount } from "./solana";
 import {
   createAssociatedTokenAccount,
@@ -26,9 +22,9 @@ async function generateTokenAccount(nftAddress, ownerWallet, payerWallet) {
 // mints directly to the wallet
 async function createNftWithMetadata(payerKeypair) {
   try {
-    const metaplex = Metaplex.make(connection)
-      .use(keypairIdentity(payerKeypair || getUserAccount()))
-      .use(bundlrStorage({ address: "https://devnet.bundlr.network" }));
+    const metaplex = Metaplex.make(connection).use(
+      keypairIdentity(payerKeypair || getUserAccount())
+    );
 
     const { uri } = await metaplex.nfts().uploadMetadata({
       name: "Fibi NFT",

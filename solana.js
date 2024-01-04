@@ -10,7 +10,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const DEFAULT_MNEMONIC =
-  "trouble sport ignore faint hidden mushroom van future naive spike issue sheriff";
+  "trouble sport ignore faint hidden mushroom van future naive spike issue sheriff"; // devnet address 8TDZ7JWKUnhhtQsYa7e6mepj2txVN4VbuvSTn4MdcZWc
 const TWEED_WALLET_MNEMONIC = process.env.TWEED_WALLET_MNEMONIC; // devnet address 2SaEtKn292eAgHnfypJMGkUPXfHhZvMt4VjXKLXJBxbf
 const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
@@ -33,11 +33,12 @@ async function airdropSolToUserAccount(keypair) {
 }
 
 async function createMintAccount(keypair) {
+  const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
   const decimals = 0;
   const publicKey = await createMint(
     connection,
     keypair,
-    keypair.publicKey,
+    mintAuthorityKeypair.publicKey,
     keypair.publicKey,
     decimals
   );
@@ -49,29 +50,32 @@ async function createMintAccount(keypair) {
 
 async function createTokenAccount(mint, keypair) {
   try {
-    const account_address = await createAssociatedTokenAccount(
+    const tokenAccPubKey = await createAssociatedTokenAccount(
       connection,
       keypair,
       mint,
       keypair.publicKey
     );
     console.log(
-      `Token Account: https://solscan.io/address/${account_address}?cluster=devnet`
+      `Token Account: https://solscan.io/address/${tokenAccPubKey}?cluster=devnet`
     );
-    return account_address;
+    return tokenAccPubKey;
   } catch (error) {
     console.log(`createTokenAccount error: ${error.message}`);
     throw error;
   }
 }
 
-async function mint(keypair, mint, tokenAccount) {
+async function mint(mintAccountPubkey, tokenAccountPubkey) {
   try {
+    const mintAuthorityKeypair = getUserAccount(TWEED_WALLET_MNEMONIC);
+
     const transactionSignature = await mintTo(
-      keypair,
-      mint,
-      tokenAccount,
-      keypair,
+      connection,
+      mintAuthorityKeypair,
+      mintAccountPubkey,
+      tokenAccountPubkey,
+      mintAuthorityKeypair,
       10
     );
     console.log(
@@ -80,34 +84,9 @@ async function mint(keypair, mint, tokenAccount) {
     return transactionSignature;
   } catch (error) {
     console.log(`mint error: ${error.message}`);
+    throw error;
   }
 }
-
-// (async () => {
-//   const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-//   const keypair = getUserAccount();
-//   await airdropSolToUserAccount(keypair, connection);
-//   const mintAccountPubkey = await createMintAccount(connection, keypair);
-//   const tokenAccountAddress = await createTokenAccount(
-//     connection,
-//     mintAccountPubkey,
-//     keypair
-//   );
-//   const transactionHash = await mint(
-//     connection,
-//     keypair,
-//     mintAccountPubkey,
-//     tokenAccountAddress
-//   );
-
-//   //   const number_of_tokens = 1 * Math.pow(10, MINT_CONFIG.numDecimals);
-//   //   let mint = await createMintToInstruction(
-//   //     mintKeypair.publicKey,
-//   //     mintAuthority,
-//   //     tokenAccountAddress,
-//   //     number_of_tokens
-//   //   );
-// })();
 
 function generateSolanaKeypair() {
   const mnemonic = generateMnemonic();
@@ -120,3 +99,30 @@ function generateSolanaKeypair() {
 
   return keypair;
 }
+
+async function main() {
+  const keypair = getUserAccount();
+
+  console.log(
+    "Wallet address that will generate token:" +
+      `https://solscan.io/account/${keypair.publicKey.toBase58()}`
+  );
+
+  await airdropSolToUserAccount(keypair);
+
+  // creating mint account with tweed mint authority
+  const mintAccountPubkey = await createMintAccount(keypair);
+
+  const tokenAccountPubkey = await createTokenAccount(
+    mintAccountPubkey,
+    keypair
+  );
+
+  // mint only after uploaded metadata
+  //   const transactionHash = await mint(
+  //   mintAccountPubkey,
+  //   tokenAccountPubkey
+  // );
+}
+
+main();
