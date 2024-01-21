@@ -11,13 +11,47 @@ import {
   fromWeb3JsPublicKey,
   toWeb3JsPublicKey,
 } from "@metaplex-foundation/umi-web3js-adapters";
+import {  nftStorageUploader } from '@metaplex-foundation/umi-uploader-nft-storage'
+import dotenv from "dotenv";
+import  fs  from 'fs'
+dotenv.config();
 
 // constants
 const umi = createUmi(clusterApiUrl("devnet"));
-const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+umi.use(nftStorageUploader({ token: process.env.NFT_STORAGE_TOKEN }))
+
+
+const connection = new Connection(clusterApiUrl("devnet"), 'confirmed')
 const mplProgramId = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 );
+
+
+async function createUri() {
+  const imageBuffer =  fs.readFileSync("/Users/alisamakarova/Desktop/fibi.png")
+  const file = {
+    buffer: imageBuffer,
+    fileName: "testNft",
+    displayName: "test nft",
+    uniqueName: "fibiNft",
+    contentType: 'image/png',
+    extension: 'png',
+    tags: [{name: 'test', value: 'test'}]
+
+  }
+  
+  const fileUri = await umi.uploader.upload([file])
+  
+  // Upload the JSON metadata.
+  const uri = await umi.uploader.uploadJson({
+    name: 'My NFT #1',
+    description: 'My description',
+    image: fileUri,
+  })
+
+  console.log({uri})
+  return uri
+}
 
 export async function updateTokenMetadata(
   mint,
@@ -29,22 +63,33 @@ export async function updateTokenMetadata(
       [Buffer.from("metadata"), mplProgramId.toBytes(), mint.toBytes()],
       mplProgramId
     );
+    const uri = await createUri()
 
     const instructionArgs = {
       mint,
       mintAuthority: mintAuthorityKeypair,
       //payer: keypair,
-      //updateAuthority: keypair.publicKey,
+      updateAuthority: ownerKeypair.publicKey, // could affect token type
       data: {
         name: "Test Nft",
         symbol: "TEST",
-        uri: "https://static.wixstatic.com/media/0fe759_eed11ea2e1c240b1847f0cfa80b9290b~mv2.png/v1/fill/w_260,h_294,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/%D7%A1%D7%91%D7%AA%D7%90%20%D7%A4%D7%99%D7%91%D7%99.png",
+        uri,
         sellerFeeBasisPoints: 0,
-        creators: null,
-        collection: null,
+        creators: [
+          {
+            address: fromWeb3JsPublicKey(ownerKeypair.publicKey),
+            verified: true,
+            share: 100,
+          },
+        ], // could affect token type
+        collection: {
+          // could affect token type
+          verified: false,
+          key: mint,
+        },
         uses: null,
       },
-      isMutable: false,
+      isMutable: true,
       collectionDetails: null,
     };
 
