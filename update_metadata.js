@@ -26,34 +26,9 @@ export async function addMetadataToToken(mintAccountPubkey, platformKeypair, min
     isMutable: false,
     collectionDetails: null
   }
-
-  console.log( {
-    mint: mintAccountPubkey.toString(),
-    mintAuthority: platformKeypair.publicKey.toString(),
-    payer: platformKeypair.publicKey.toString(),
-    updateAuthority: platformKeypair.publicKey.toString(),
-    data: {
-        name: "UDI Token",
-        symbol: "UDI",
-        uri: "google.com",
-        sellerFeeBasisPoints: 0,
-        creators: null,
-        collection: null,
-        uses: null
-    },
-    isMutable: false,
-    collectionDetails: null
-  })
   
   let transactionBuilder = createMetadataAccountV3(umi, CreateMetadataAccountV3Args)
-
-  console.log('builder getSigners: ' + transactionBuilder.getSigners(umi)[0].publicKey.toString())
-
-  
   let transaction = (await transactionBuilder.setLatestBlockhash(umi)).build(umi)
-
-  //console.log(transaction)
-
   let signTransaction = signer.signTransaction(transaction)
   //const signature = await umi.rpc.sendTransaction(signTransaction)
   //let txHash = await umi.rpc.sendTransaction(transaction)
