@@ -11,7 +11,7 @@ export async function addMetadataToToken(mintAccountPubkey, platformKeypair, min
 
   const CreateMetadataAccountV3Args = {
     mint: mintAccountPubkey,
-    mintAuthority: platformKeypair,
+    mintAuthority: mintAuthKeypair,
     payer: platformKeypair,
     updateAuthority: platformKeypair.publicKey,
     data: {
