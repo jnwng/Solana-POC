@@ -1,8 +1,7 @@
 1. `Change .evn.templeate to .env`
 2. Add 3 mnemonic phrases to the `.evn`
 3. Run the code by hitting:
-`npm run install`
-`npm run start`
+`npm run install` and `npm run start`
 
 The code will: 
 - Fetch 3 accounts
