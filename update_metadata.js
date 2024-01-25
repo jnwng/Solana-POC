@@ -1,12 +1,12 @@
 import {createMetadataAccountV3} from "@metaplex-foundation/mpl-token-metadata";
 import {clusterApiUrl} from "@solana/web3.js";
 import {createUmi} from "@metaplex-foundation/umi-bundle-defaults";
-import {generateSigner, signerIdentity} from "@metaplex-foundation/umi";
-import {fromWeb3JsPublicKey} from '@metaplex-foundation/umi-web3js-adapters'
+import {generateSigner, signerIdentity, createSignerFromKeypair} from "@metaplex-foundation/umi";
+import {fromWeb3JsKeypair} from '@metaplex-foundation/umi-web3js-adapters'
 
 export async function addMetadataToToken(mintAccountPubkey, platformKeypair, mintAuthKeypair) {
   const chain = clusterApiUrl("devnet");
-  const umi = createUmi(chain).use(signerIdentity(platformKeypair));
+  const umi = createUmi(chain);
   const signer = generateSigner(umi);
 
   const CreateMetadataAccountV3Args = {
@@ -28,8 +28,17 @@ export async function addMetadataToToken(mintAccountPubkey, platformKeypair, min
   }
   
   let transactionBuilder = createMetadataAccountV3(umi, CreateMetadataAccountV3Args)
-  let transaction = (await transactionBuilder.setLatestBlockhash(umi)).build(umi)
-  let signTransaction = signer.signTransaction(transaction)
+
+  transactionBuilder = transactionBuilder.setFeePayer(createSignerFromKeypair(umi, fromWeb3JsKeypair(platformKeypair)))
+  let transaction = await transactionBuilder.buildAndSign(umi);
+
+  const signature = await umi.rpc.sendTransaction(transaction);
+  const confirmResult = await umi.rpc.confirmTransaction(signature, {
+    strategy: { type: 'blockhash', ...(await umi.rpc.getLatestBlockhash()) }
+  });
+
+
+
   //const signature = await umi.rpc.sendTransaction(signTransaction)
   //let txHash = await umi.rpc.sendTransaction(transaction)
 }
